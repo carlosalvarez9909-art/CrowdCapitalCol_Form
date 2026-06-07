@@ -1,238 +1,241 @@
 const canvas = document.getElementById("particles");
 const ctx = canvas.getContext("2d");
-
-let width = 0;
-let height = 0;
-let particles = [];
-let mouse = { x: null, y: null, active: false };
-
 const startBtn = document.getElementById("startBtn");
 const formPanel = document.getElementById("formPanel");
-const steps = Array.from(document.querySelectorAll(".step"));
+const form = document.getElementById("diagnosticForm");
+const stepLabel = document.getElementById("stepLabel");
+const progressFill = document.getElementById("progressFill");
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 const submitBtn = document.getElementById("submitBtn");
-const stepLabel = document.getElementById("stepLabel");
-const progressFill = document.getElementById("progressFill");
-const form = document.getElementById("diagnosticForm");
 const result = document.getElementById("result");
 
-let currentStep = 0;
+let current = 0;
+let answers = {};
+let particles = [];
+let mouse = { x: 0, y: 0, active: false };
 
-function resizeCanvas() {
-  width = window.innerWidth;
-  height = window.innerHeight;
-  canvas.width = width * window.devicePixelRatio;
-  canvas.height = height * window.devicePixelRatio;
-  canvas.style.width = `${width}px`;
-  canvas.style.height = `${height}px`;
-  ctx.setTransform(window.devicePixelRatio, 0, 0, window.devicePixelRatio, 0, 0);
-  createParticles();
-}
+const questions = [
+  { section: "Identificacion", label: "Nombre completo", name: "nombre", type: "text" },
+  { section: "Identificacion", label: "Correo electronico", name: "email", type: "email" },
+  { section: "Identificacion", label: "Edad", name: "edad", type: "number" },
+  { section: "Identificacion", label: "Cual es tu perfil principal?", name: "perfil", type: "select", options: ["Empleado", "Independiente", "Empresario", "Emprendedor", "Estudiante"] },
+  { section: "Identificacion", label: "Tienes personas que dependan economicamente de ti?", name: "dependientes", type: "select", options: ["No", "Si, 1 persona", "Si, 2 personas", "Si, 3 o mas"] },
+  { section: "Claridad financiera", label: "Tienes un objetivo financiero definido actualmente?", name: "objetivo_definido", type: "select", options: ["A. Si, claro y medible", "B. Tengo una idea general", "C. No lo tengo definido"] },
+  { section: "Claridad financiera", label: "Define tu objetivo financiero principal", name: "objetivo", type: "text" },
 
-function createParticles() {
-  const count = Math.min(95, Math.floor((width * height) / 15000));
-  particles = Array.from({ length: count }, (_, index) => {
-    const depth = Math.random();
-    return {
-      x: Math.random() * width,
-      y: Math.random() * height,
-      baseSize: 1.2 + depth * 3.2,
-      size: 1.2 + depth * 3.2,
-      speedX: (Math.random() - 0.5) * (0.18 + depth * 0.32),
-      speedY: (Math.random() - 0.5) * (0.18 + depth * 0.32),
-      depth,
-      alpha: 0.22 + depth * 0.58,
-      pulse: Math.random() * Math.PI * 2,
-      hue: Math.random() > 0.55 ? 136 : 158
-    };
-  });
-}
+  { section: "Ingresos", label: "Ingreso recibido en tu mes mas reciente", name: "ingreso_1", type: "number" },
+  { section: "Ingresos", label: "Ingreso del mes inmediatamente anterior", name: "ingreso_2", type: "number" },
+  { section: "Ingresos", label: "Ingreso del tercer mes mas reciente", name: "ingreso_3", type: "number" },
+  { section: "Ingresos", label: "El ingreso reportado corresponde a:", name: "tipo_ingreso", type: "select", options: ["A. Ingreso fijo", "B. Ingreso variable", "C. Ingreso mixto", "D. Ingreso ocasional"] },
+  { section: "Ingresos", label: "Como evolucionaron tus ingresos en los ultimos 6 meses?", name: "evolucion_ingresos", type: "select", options: ["A. Han aumentado", "B. Se mantienen estables", "C. Han disminuido", "D. Son impredecibles"] },
+  { section: "Ingresos", label: "Cuantas fuentes de ingreso activas tienes?", name: "fuentes_ingreso", type: "select", options: ["A. 1", "B. 2", "C. 3", "D. 4", "E. 5 o mas"] },
+  { section: "Ingresos", label: "En un mes bueno, cual suele ser tu ingreso aproximado?", name: "ingreso_bueno", type: "number" },
+  { section: "Ingresos", label: "En un mes bajo, cual suele ser tu ingreso aproximado?", name: "ingreso_bajo", type: "number" },
+  { section: "Ingresos", label: "Que tan predecibles son tus ingresos?", name: "predictibilidad", type: "range", min: 1, max: 5 },
 
-function drawBackground() {
-  const gradient = ctx.createRadialGradient(
-    width * 0.5,
-    height * 0.45,
-    0,
-    width * 0.5,
-    height * 0.45,
-    Math.max(width, height) * 0.72
-  );
+  { section: "Gastos", label: "Total de gastos en el mes mas reciente", name: "gasto_1", type: "number" },
+  { section: "Gastos", label: "Total de gastos del mes inmediatamente anterior", name: "gasto_2", type: "number" },
+  { section: "Gastos", label: "Total de gastos del tercer mes mas reciente", name: "gasto_3", type: "number" },
+  { section: "Gastos", label: "En que tipo de gastos sientes que mas dinero se va sin darte cuenta?", name: "gasto_fuga", type: "select", options: ["A. Comida fuera de casa", "B. Transporte", "C. Compras impulsivas", "D. Entretenimiento", "E. Suscripciones", "F. Otro"] },
+  { section: "Gastos", label: "Que gasto realizas con mayor frecuencia aunque sea pequeno?", name: "gasto_frecuente", type: "text" },
+  { section: "Gastos", label: "Que gasto podrias reducir desde hoy?", name: "gasto_reducible", type: "text" },
+  { section: "Gastos", label: "Cuanto dinero mensual podrias reducir sin afectar tu calidad de vida?", name: "monto_reducible", type: "number" },
+  { section: "Gastos", label: "Porcentaje de gastos fijos obligatorios", name: "gastos_fijos", type: "range", min: 0, max: 100 },
+  { section: "Gastos", label: "Porcentaje de gastos no planificados", name: "gastos_no_planificados", type: "range", min: 0, max: 100 },
 
-  gradient.addColorStop(0, "rgba(8, 38, 20, 0.88)");
-  gradient.addColorStop(0.42, "rgba(3, 12, 7, 0.94)");
-  gradient.addColorStop(1, "rgba(3, 5, 4, 1)");
+  { section: "Deuda", label: "Tienes deudas o utilizas credito actualmente?", name: "tiene_deuda", type: "select", options: ["A. No", "B. Si, bajo control", "C. Si, me preocupa", "D. Si, esta creciendo"] },
+  { section: "Deuda", label: "Cuanto pagas mensualmente en cuotas de deuda?", name: "pago_deuda", type: "number" },
+  { section: "Deuda", label: "Saldo total pendiente de tus deudas", name: "saldo_deuda", type: "number" },
+  { section: "Deuda", label: "Clasifica tu deuda principal", name: "tipo_deuda", type: "select", options: ["A. Tarjeta de credito", "B. Libre inversion", "C. Vehiculo", "D. Hipoteca", "E. Prestamo informal", "F. No aplica"] },
+  { section: "Deuda", label: "Has usado credito para cubrir gastos basicos en los ultimos 6 meses?", name: "credito_basicos", type: "select", options: ["A. Nunca", "B. Una vez", "C. Varias veces", "D. Frecuentemente"] },
 
-  ctx.fillStyle = gradient;
-  ctx.fillRect(0, 0, width, height);
-}
+  { section: "Ahorro y emergencia", label: "Cuanto dinero tienes ahorrado actualmente?", name: "ahorro", type: "number" },
+  { section: "Ahorro y emergencia", label: "Que porcentaje de tu ingreso logras ahorrar?", name: "porcentaje_ahorro", type: "range", min: 0, max: 100 },
+  { section: "Ahorro y emergencia", label: "Que sucede normalmente cuando logras ahorrar?", name: "conducta_ahorro", type: "select", options: ["A. Lo mantengo", "B. Lo uso eventualmente", "C. Termino gastandolo"] },
+  { section: "Ahorro y emergencia", label: "Donde mantienes principalmente tu dinero ahorrado?", name: "lugar_ahorro", type: "select", options: ["A. Cuenta bancaria", "B. Efectivo", "C. Billetera digital", "D. Inversion", "E. No tengo ahorro"] },
+  { section: "Ahorro y emergencia", label: "Dinero disponible como fondo de emergencia", name: "fondo_emergencia", type: "number" },
+  { section: "Ahorro y emergencia", label: "Si dejaras de recibir ingresos hoy, cuantos meses podrias sostener tus gastos?", name: "meses_cobertura", type: "range", min: 0, max: 12 },
 
-function drawParticle(particle, time) {
-  const pulse = Math.sin(time * 0.0018 + particle.pulse) * 0.45;
-  const glowSize = particle.size * (6 + particle.depth * 8);
+  { section: "Comportamiento financiero", label: "Cuando tienes dinero disponible, que haces primero?", name: "prioridad_dinero", type: "select", options: ["A. Ahorro", "B. Pago deudas", "C. Gasto en necesidades", "D. Gasto en gustos", "E. Invierto"] },
+  { section: "Comportamiento financiero", label: "Cuando surge un gasto inesperado normalmente:", name: "gasto_inesperado", type: "select", options: ["A. Uso ahorro", "B. Ajusto otros gastos", "C. Me endeudo", "D. Me genera estres y no se como cubrirlo"] },
+  { section: "Comportamiento financiero", label: "Si tus ingresos disminuyeran 20%, que tan facil seria ajustar tus gastos?", name: "ajuste_20", type: "range", min: 1, max: 5 },
+  { section: "Comportamiento financiero", label: "Que tan seguido tomas decisiones financieras sin analizarlas?", name: "decisiones_impulsivas", type: "range", min: 1, max: 5 },
+  { section: "Comportamiento financiero", label: "Que tan impulsivo te consideras para comprar?", name: "impulsividad", type: "range", min: 1, max: 5 },
+  { section: "Comportamiento financiero", label: "Nivel de educacion financiera", name: "educacion", type: "select", options: ["A. Bajo", "B. Medio", "C. Alto"] },
+  { section: "Comportamiento financiero", label: "Que ha limitado mas tu crecimiento financiero?", name: "limitantes", type: "multi", options: ["Ingresos insuficientes", "Gastos desordenados", "Deudas", "Falta de estrategia", "Falta de disciplina", "Falta de conocimiento financiero"] }
+];
 
-  ctx.beginPath();
-  ctx.fillStyle = `hsla(${particle.hue}, 78%, 52%, ${particle.alpha * 0.10})`;
-  ctx.arc(particle.x, particle.y, glowSize, 0, Math.PI * 2);
-  ctx.fill();
+function renderQuestion() {
+  const q = questions[current];
+  let html = `<div class="step active"><h2>${q.section}</h2><label>${q.label}</label>`;
 
-  ctx.beginPath();
-  ctx.fillStyle = `hsla(${particle.hue}, 82%, 56%, ${particle.alpha})`;
-  ctx.arc(particle.x, particle.y, Math.max(0.8, particle.size + pulse), 0, Math.PI * 2);
-  ctx.fill();
-}
-
-function connectParticles() {
-  for (let i = 0; i < particles.length; i++) {
-    for (let j = i + 1; j < particles.length; j++) {
-      const a = particles[i];
-      const b = particles[j];
-      const dx = a.x - b.x;
-      const dy = a.y - b.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-
-      if (distance < 115) {
-        const opacity = (1 - distance / 115) * 0.10;
-        ctx.strokeStyle = `rgba(32, 201, 51, ${opacity})`;
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
-        ctx.stroke();
-      }
-    }
-  }
-}
-
-function updateParticle(particle) {
-  particle.x += particle.speedX;
-  particle.y += particle.speedY;
-
-  if (mouse.active && mouse.x !== null && mouse.y !== null) {
-    const dx = particle.x - mouse.x;
-    const dy = particle.y - mouse.y;
-    const distance = Math.sqrt(dx * dx + dy * dy);
-    const radius = 150;
-
-    if (distance < radius) {
-      const force = (radius - distance) / radius;
-      particle.x += (dx / Math.max(distance, 1)) * force * (1.8 + particle.depth * 2.8);
-      particle.y += (dy / Math.max(distance, 1)) * force * (1.8 + particle.depth * 2.8);
-      particle.size = particle.baseSize + force * 2.8;
-      particle.alpha = Math.min(0.95, particle.alpha + force * 0.04);
-    } else {
-      particle.size += (particle.baseSize - particle.size) * 0.04;
-    }
-  } else {
-    particle.size += (particle.baseSize - particle.size) * 0.04;
+  if (["text", "email", "number"].includes(q.type)) {
+    html += `<input type="${q.type}" name="${q.name}" required value="${answers[q.name] || ""}">`;
   }
 
-  if (particle.x < -20) particle.x = width + 20;
-  if (particle.x > width + 20) particle.x = -20;
-  if (particle.y < -20) particle.y = height + 20;
-  if (particle.y > height + 20) particle.y = -20;
-}
+  if (q.type === "select") {
+    html += `<select name="${q.name}" required><option value="">Selecciona una opcion</option>`;
+    q.options.forEach(o => html += `<option ${answers[q.name] === o ? "selected" : ""}>${o}</option>`);
+    html += `</select>`;
+  }
 
-function animate(time) {
-  drawBackground();
+  if (q.type === "range") {
+    html += `<input type="range" name="${q.name}" min="${q.min}" max="${q.max}" value="${answers[q.name] || q.min}">
+             <p class="range-value">Puntaje actual: <strong>${answers[q.name] || q.min}</strong></p>`;
+  }
 
-  particles.forEach((particle) => {
-    updateParticle(particle);
-    drawParticle(particle, time);
-  });
-
-  connectParticles();
-  requestAnimationFrame(animate);
-}
-
-window.addEventListener("resize", resizeCanvas);
-
-window.addEventListener("mousemove", (event) => {
-  mouse.x = event.clientX;
-  mouse.y = event.clientY;
-  mouse.active = true;
-});
-
-window.addEventListener("mouseleave", () => {
-  mouse.active = false;
-});
-
-window.addEventListener("click", (event) => {
-  for (let i = 0; i < 14; i++) {
-    const depth = Math.random();
-    particles.push({
-      x: event.clientX,
-      y: event.clientY,
-      baseSize: 1.4 + depth * 3.5,
-      size: 4 + depth * 4,
-      speedX: (Math.random() - 0.5) * 4.2,
-      speedY: (Math.random() - 0.5) * 4.2,
-      depth,
-      alpha: 0.55 + depth * 0.35,
-      pulse: Math.random() * Math.PI * 2,
-      hue: Math.random() > 0.5 ? 136 : 158
+  if (q.type === "multi") {
+    q.options.forEach(o => {
+      const checked = Array.isArray(answers[q.name]) && answers[q.name].includes(o) ? "checked" : "";
+      html += `<label class="option"><input type="checkbox" name="${q.name}" value="${o}" ${checked}> ${o}</label>`;
     });
   }
 
-  if (particles.length > 135) {
-    particles.splice(0, particles.length - 135);
-  }
-});
+  html += `</div>`;
 
-startBtn.addEventListener("click", () => {
+  document.querySelectorAll(".step").forEach(el => el.remove());
+  form.insertAdjacentHTML("afterbegin", html);
+
+  stepLabel.textContent = `Pregunta ${current + 1} de ${questions.length}`;
+  progressFill.style.width = `${((current + 1) / questions.length) * 100}%`;
+  prevBtn.classList.toggle("hidden", current === 0);
+  nextBtn.classList.toggle("hidden", current === questions.length - 1);
+  submitBtn.classList.toggle("hidden", current !== questions.length - 1);
+}
+
+function saveCurrent() {
+  const q = questions[current];
+  if (q.type === "multi") {
+    answers[q.name] = [...form.querySelectorAll(`input[name="${q.name}"]:checked`)].map(i => i.value);
+    return answers[q.name].length > 0;
+  }
+
+  const field = form.querySelector(`[name="${q.name}"]`);
+  if (!field || !field.checkValidity()) {
+    field.reportValidity();
+    return false;
+  }
+
+  answers[q.name] = field.value;
+  return true;
+}
+
+startBtn.onclick = () => {
   document.querySelector(".hero").classList.add("hidden");
   formPanel.classList.remove("hidden");
-  updateSteps();
-});
+  renderQuestion();
+};
 
-function updateSteps() {
-  steps.forEach((step, index) => {
-    step.classList.toggle("active", index === currentStep);
-  });
+nextBtn.onclick = () => {
+  if (!saveCurrent()) return;
+  current++;
+  renderQuestion();
+};
 
-  stepLabel.textContent = `Paso ${currentStep + 1} de ${steps.length}`;
-  progressFill.style.width = `${((currentStep + 1) / steps.length) * 100}%`;
+prevBtn.onclick = () => {
+  saveCurrent();
+  current--;
+  renderQuestion();
+};
 
-  prevBtn.classList.toggle("hidden", currentStep === 0);
-  nextBtn.classList.toggle("hidden", currentStep === steps.length - 1);
-  submitBtn.classList.toggle("hidden", currentStep !== steps.length - 1);
+form.onsubmit = (e) => {
+  e.preventDefault();
+  if (!saveCurrent()) return;
+
+  const ingreso = promedio(["ingreso_1", "ingreso_2", "ingreso_3"]);
+  const gasto = promedio(["gasto_1", "gasto_2", "gasto_3"]);
+  const flujo = ingreso - gasto - numero("pago_deuda");
+  const cobertura = gasto > 0 ? numero("fondo_emergencia") / gasto : 0;
+
+  let score = 100;
+  if (flujo <= 0) score -= 25;
+  if (gasto / ingreso > 0.75) score -= 15;
+  if (cobertura < 1) score -= 20;
+  if (numero("saldo_deuda") / ingreso > 6) score -= 15;
+  if (answers.objetivo_definido?.includes("No")) score -= 10;
+  if (answers.gasto_inesperado?.includes("Me endeudo")) score -= 10;
+
+  score = Math.max(0, Math.min(100, Math.round(score)));
+
+  const nivel = score <= 40 ? "Critico" : score <= 60 ? "Vulnerable" : score <= 75 ? "Estable" : score <= 90 ? "Saludable" : "Optimo";
+
+  result.classList.remove("hidden");
+  result.innerHTML = `
+    <h2>Tu espejo financiero inicial</h2>
+    <p><strong>Score general:</strong> ${score}/100</p>
+    <p><strong>Nivel financiero:</strong> ${nivel}</p>
+    <p><strong>Ingreso promedio:</strong> $${Math.round(ingreso).toLocaleString("es-CO")}</p>
+    <p><strong>Gasto promedio:</strong> $${Math.round(gasto).toLocaleString("es-CO")}</p>
+    <p><strong>Flujo libre estimado:</strong> $${Math.round(flujo).toLocaleString("es-CO")}</p>
+    <p><strong>Cobertura de emergencia:</strong> ${cobertura.toFixed(1)} meses</p>
+    <p>Este resultado muestra una primera lectura de tu realidad financiera. El informe completo profundiza riesgos, oportunidades y escenarios de mejora.</p>
+  `;
+
+  result.scrollIntoView({ behavior: "smooth" });
+};
+
+function numero(name) {
+  return Number(answers[name] || 0);
 }
 
-function validateCurrentStep() {
-  const fields = Array.from(steps[currentStep].querySelectorAll("input, select"));
-  return fields.every((field) => {
-    if (!field.checkValidity()) {
-      field.reportValidity();
-      return false;
+function promedio(names) {
+  return names.reduce((s, n) => s + numero(n), 0) / names.length;
+}
+
+function resize() {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+  particles = Array.from({ length: 90 }, () => ({
+    x: Math.random() * innerWidth,
+    y: Math.random() * innerHeight,
+    r: Math.random() * 3 + 1,
+    vx: (Math.random() - 0.5) * 0.6,
+    vy: (Math.random() - 0.5) * 0.6,
+    a: Math.random() * 0.6 + 0.25
+  }));
+}
+
+function animate() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.fillStyle = "#030504";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  particles.forEach(p => {
+    const dx = p.x - mouse.x;
+    const dy = p.y - mouse.y;
+    const d = Math.sqrt(dx * dx + dy * dy);
+
+    if (mouse.active && d < 140) {
+      p.x += dx / d * 1.8;
+      p.y += dy / d * 1.8;
     }
-    return true;
+
+    p.x += p.vx;
+    p.y += p.vy;
+
+    if (p.x < 0 || p.x > innerWidth) p.vx *= -1;
+    if (p.y < 0 || p.y > innerHeight) p.vy *= -1;
+
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2);
+    ctx.fillStyle = `rgba(32, 201, 51, ${p.a})`;
+    ctx.shadowBlur = 16;
+    ctx.shadowColor = "#20c933";
+    ctx.fill();
+    ctx.shadowBlur = 0;
   });
+
+  requestAnimationFrame(animate);
 }
 
-nextBtn.addEventListener("click", () => {
-  if (!validateCurrentStep()) return;
-  currentStep += 1;
-  updateSteps();
+addEventListener("resize", resize);
+addEventListener("mousemove", e => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
+  mouse.active = true;
 });
+addEventListener("mouseleave", () => mouse.active = false);
 
-prevBtn.addEventListener("click", () => {
-  currentStep -= 1;
-  updateSteps();
-});
-
-form.addEventListener("submit", (event) => {
-  event.preventDefault();
-
-  if (!validateCurrentStep()) return;
-
-  const data = Object.fromEntries(new FormData(form).entries());
-
-  const ingresos = Number(data.ingresos);
-  const gastos = Number(data.gastos);
-  const deudas = Number(data.deudas);
-  const ahorro = Number(data.ahorro);
-  const horas = Number(data.horas);
-
-  const flujoLibre = ingresos - gastos;
-  const ingresoHora = horas > 0 ? ingresos / horas : 0;
-  const ratioGasto =
+resize();
+animate();
