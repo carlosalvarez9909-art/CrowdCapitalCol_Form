@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Diagnóstico Financiero Integral CrowdCapital</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <canvas id="particles"></canvas>
+
+  <main class="app">
+    <section class="hero">
+      <div class="brand">CrowdCapital Col.</div>
+      <h1>Diagnóstico Financiero Integral</h1>
+      <p>
+        Evalúa tu realidad financiera actual, identifica riesgos y descubre oportunidades
+        de mejora con un diagnóstico personalizado.
+      </p>
+      <button id="startBtn">Iniciar diagnóstico</button>
+    </section>
+
+    <section class="form-panel hidden" id="formPanel">
+      <div class="progress">
+        <span id="stepLabel">Paso 1 de 4</span>
+        <div class="bar"><div id="progressFill"></div></div>
+      </div>
+
+      <form id="diagnosticForm">
+        <div class="step active">
+          <h2>Identificación del cliente</h2>
+
+          <label>Nombre completo</label>
+          <input type="text" name="nombre" required />
+
+          <label>Correo electrónico</label>
+          <input type="email" name="email" required />
+
+          <label>Edad</label>
+          <input type="number" name="edad" min="18" max="90" required />
+        </div>
+
+        <div class="step">
+          <h2>Datos económicos</h2>
+
+          <label>Ingresos mensuales promedio</label>
+          <input type="number" name="ingresos" required />
+
+          <label>Gastos mensuales promedio</label>
+          <input type="number" name="gastos" required />
+
+          <label>Horas trabajadas al mes</label>
+          <input type="number" name="horas" required />
+        </div>
+
+        <div class="step">
+          <h2>Información financiera medible</h2>
+
+          <label>Total de deudas actuales</label>
+          <input type="number" name="deudas" required />
+
+          <label>Ahorro actual disponible</label>
+          <input type="number" name="ahorro" required />
+
+          <label>¿Tienes fondo de emergencia?</label>
+          <select name="fondo_emergencia" required>
+            <option value="">Selecciona una opción</option>
+            <option value="si">Sí</option>
+            <option value="no">No</option>
+          </select>
+        </div>
+
+        <div class="step">
+          <h2>Claridad financiera</h2>
+
+          <label>¿Sabes cuánto dinero te queda libre cada mes?</label>
+          <select name="claridad_flujo" required>
+            <option value="">Selecciona una opción</option>
+            <option value="claro">Sí, lo tengo claro</option>
+            <option value="aproximado">Tengo una idea aproximada</option>
+            <option value="no">No lo sé</option>
+          </select>
+
+          <label>¿Tienes un objetivo financiero definido?</label>
+          <select name="objetivo_definido" required>
+            <option value="">Selecciona una opción</option>
+            <option value="claro">Sí, claro y medible</option>
+            <option value="general">Tengo una idea general</option>
+            <option value="no">No lo tengo definido</option>
+          </select>
+        </div>
+
+        <div class="actions">
+          <button type="button" id="prevBtn">Atrás</button>
+          <button type="button" id="nextBtn">Siguiente</button>
+          <button type="submit" id="submitBtn" class="hidden">Generar diagnóstico</button>
+        </div>
+      </form>
+
+      <section id="result" class="result hidden"></section>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
