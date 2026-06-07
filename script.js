@@ -18,8 +18,8 @@ let mouse = { x: 0, y: 0, active: false };
 const questions = [
   { section: "Identificacion", label: "Nombre completo", name: "nombre", type: "text" },
   { section: "Identificacion", label: "Correo electronico", name: "email", type: "email" },
-  { section: "Identificacion", label: "Edad", name: "edad", type: "number" },
-  { section: "Identificacion", label: "Cual es tu perfil principal?", name: "perfil", type: "select", options: ["Empleado", "Independiente", "Empresario", "Emprendedor", "Estudiante"] },
+  { section: "Identificación", label: "¿Cuál es tu edad?", name: "edad", type: "number", help: "Este dato nos ayuda a interpretar tu etapa financiera actual y proyectar prioridades realistas." },
+  { section: "Identificacion", label: "Para orientarte correctamente, ¿cuál es tu perfil financiero principal?", name: "perfil", type: "select", options: ["Empleado", "Independiente", "Empresario", "Emprendedor", "Estudiante"] },
   { section: "Identificacion", label: "Tienes personas que dependan economicamente de ti?", name: "dependientes", type: "select", options: ["No", "Si, 1 persona", "Si, 2 personas", "Si, 3 o mas"] },
   { section: "Claridad financiera", label: "Tienes un objetivo financiero definido actualmente?", name: "objetivo_definido", type: "select", options: ["A. Si, claro y medible", "B. Tengo una idea general", "C. No lo tengo definido"] },
   { section: "Claridad financiera", label: "Define tu objetivo financiero principal", name: "objetivo", type: "text" },
@@ -70,19 +70,28 @@ function renderQuestion() {
   const q = questions[current];
   let html = `<div class="step active"><h2>${q.section}</h2><label>${q.label}</label>`;
 
+  if (q.help) {
+    html += `<p class="question-help">${q.help}</p>`;
+  }
+
   if (["text", "email", "number"].includes(q.type)) {
-    html += `<input type="${q.type}" name="${q.name}" required value="${answers[q.name] || ""}">`;
+    const pattern = q.textOnly ? `pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ ]+"` : "";
+    const title = q.textOnly ? `title="Escribe solo texto, sin números."` : "";
+    html += `<input type="${q.type}" name="${q.name}" required ${pattern} ${title} value="${answers[q.name] || ""}">`;
   }
 
   if (q.type === "select") {
-    html += `<select name="${q.name}" required><option value="">Selecciona una opcion</option>`;
-    q.options.forEach(o => html += `<option ${answers[q.name] === o ? "selected" : ""}>${o}</option>`);
+    html += `<select name="${q.name}" required><option value="">Selecciona una opción</option>`;
+    q.options.forEach(o => html += `<option value="${o}" ${answers[q.name] === o ? "selected" : ""}>${o}</option>`);
     html += `</select>`;
   }
 
   if (q.type === "range") {
-    html += `<input type="range" name="${q.name}" min="${q.min}" max="${q.max}" value="${answers[q.name] || q.min}">
-             <p class="range-value">Puntaje actual: <strong>${answers[q.name] || q.min}</strong></p>`;
+    const value = answers[q.name] || q.min || 1;
+    html += `
+      <input class="score-range" type="range" name="${q.name}" min="${q.min || 1}" max="${q.max || 5}" value="${value}">
+      <p class="range-value">Puntaje actual: <strong id="rangeScore">${value}</strong></p>
+    `;
   }
 
   if (q.type === "multi") {
@@ -97,13 +106,37 @@ function renderQuestion() {
   document.querySelectorAll(".step").forEach(el => el.remove());
   form.insertAdjacentHTML("afterbegin", html);
 
+  const range = form.querySelector(".score-range");
+  if (range) {
+    range.addEventListener("input", () => {
+      document.getElementById("rangeScore").textContent = range.value;
+      answers[q.name] = range.value;
+      burstParticles(10);
+    });
+  }
+
   stepLabel.textContent = `Pregunta ${current + 1} de ${questions.length}`;
   progressFill.style.width = `${((current + 1) / questions.length) * 100}%`;
   prevBtn.classList.toggle("hidden", current === 0);
   nextBtn.classList.toggle("hidden", current === questions.length - 1);
   submitBtn.classList.toggle("hidden", current !== questions.length - 1);
 }
+function burstParticles(amount = 16) {
+  for (let i = 0; i < amount; i++) {
+    particles.push({
+      x: mouse.x || innerWidth / 2,
+      y: mouse.y || innerHeight / 2,
+      r: Math.random() * 3 + 1,
+      vx: (Math.random() - 0.5) * 5,
+      vy: (Math.random() - 0.5) * 5,
+      a: Math.random() * 0.5 + 0.35
+    });
+  }
 
+  if (particles.length > 130) {
+    particles.splice(0, particles.length - 130);
+  }
+}
 function saveCurrent() {
   const q = questions[current];
   if (q.type === "multi") {
@@ -129,8 +162,20 @@ startBtn.onclick = () => {
 
 nextBtn.onclick = () => {
   if (!saveCurrent()) return;
-  current++;
+
+  if (
+    questions[current].name === "tiene_deuda" &&
+    answers.tiene_deuda &&
+    answers.tiene_deuda.includes("No")
+  ) {
+    const nextSection = questions.findIndex(q => q.section === "Ahorro y emergencia");
+    current = nextSection;
+  } else {
+    current++;
+  }
+
   renderQuestion();
+};
 };
 
 prevBtn.onclick = () => {
